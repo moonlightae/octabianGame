@@ -1,6 +1,5 @@
-import pygame
-import random
-import time
+import pygame, random, time
+# 총알색, 속도, 정상화
 
 class GamePro:
     def __init__(self):
@@ -15,14 +14,16 @@ class GamePro:
         self.bullet_color = 0
 
     def run_game(self):
-        global d, dt
+        global d, dt, left_shift_pressed
         pygame.init()
+        fontC = pygame.font.Font("global/Galmuri11-Condensed.ttf", 50)
+        fontB = pygame.font.Font("global/Galmuri11-Bold.ttf", 50)
         running = True
         out = False
         while running:
             dt += self.clock.tick(120)
             t = self.check_events()
-            # 1: 중지, 2: A키, 3: D키, 4: LSHIFT키, 5: RSHIFT키, 6: 우주선 정지
+            # 1: 중지, 2: A키, 3: D키, 4: LSHIFT키, 5: RSHIFT키, 6: 우주선 정지 7: LSHIFT UP, 8: Q, 9: W, 10: E
             if 1 in t:
                 out = True
                 running = False
@@ -34,8 +35,11 @@ class GamePro:
                 d = 0
 
             if 4 in t:
-                self.bullet_color += 1
-                self.bullet_color %= 3
+                left_shift_pressed = True
+                # self.bullet_color += 1
+                # self.bullet_color %= 3
+            if 7 in t:
+                left_shift_pressed = False
 
             if 5 in t:
                 b = Bullet(self, self.bullet_color)
@@ -43,6 +47,15 @@ class GamePro:
             self.update_screen()
             if self.life <= 0:
                 running = False
+
+            if left_shift_pressed:
+                if 8 in t:
+                    self.bullet_color = 0
+                elif 9 in t:
+                    self.bullet_color = 1
+                elif 10 in t:
+                    self.bullet_color = 2
+
         if out:
             pygame.quit()
         else:
@@ -50,8 +63,6 @@ class GamePro:
             dark.fill((0, 0, 0, 200))
             self.screen.blit(dark, (0, 0))
 
-            fontC = pygame.font.Font("global/Galmuri11-Condensed.ttf", 50)
-            fontB = pygame.font.Font("global/Galmuri11-Bold.ttf", 50)
             text1 = fontB.render("Game Over", True, (255, 255, 255))
             text2 = fontC.render(f"최종 점수: {self.point}", True, (255, 255, 255))
             self.screen.blit(text1, ((self.settings.screen_width-text1.get_width())//2, self.settings.screen_height//2 - 50))
@@ -83,6 +94,13 @@ class GamePro:
                 if event.key == pygame.K_RSHIFT:
                     r.append(5)
 
+                if event.key == pygame.K_q:
+                    r.append(8)
+                if event.key == pygame.K_w:
+                    r.append(9)
+                if event.key == pygame.K_e:
+                    r.append(10)
+
             if event.type == pygame.KEYUP:  # A, D키가 올라가면 그쪽이 안눌러진 것으로 적용하거나 둘 다 안눌러질 경우 멈추도록 한다.
                 if event.key == pygame.K_a:  # A키가 떨어졌을 때
                     d_pressed[0] = False  # A키가 떨어진 것으로 저장.
@@ -92,11 +110,13 @@ class GamePro:
                     d_pressed[1] = False
                     if not d_pressed[0]:
                         r.append(6)
+                if event.key == pygame.K_LSHIFT:
+                    r.append(7)
         pygame.display.flip()
         return r
 
     def update_screen(self):
-        global octo_down
+        global octo_down, left_shift_pressed
         self.screen.fill(self.settings.bg_color)
 
         self.create_fleet()
@@ -131,6 +151,23 @@ class GamePro:
             self.aliens[i].draw(self.screen)
         octo_down = False
 
+        if left_shift_pressed:
+            fontb = pygame.font.Font("global/Galmuri11-Bold.ttf", 20)
+            bullet_palette_rect = pygame.Rect(int(self.ship.x) + self.ship.rect.width // 2 - 50, self.settings.screen_height - 120, 100, 40)
+            bullet_palette_surf = pygame.Surface(bullet_palette_rect.size, pygame.SRCALPHA)
+            pygame.draw.rect(bullet_palette_surf, (0, 0, 0, 100), bullet_palette_surf.get_rect())
+            pygame.draw.circle(bullet_palette_surf, (200, 0, 0), (17.5, 20), 15)
+            pygame.draw.circle(bullet_palette_surf, (0, 200, 0), (50, 20), 15)
+            pygame.draw.circle(bullet_palette_surf, (0, 0, 200), (82.5, 20), 15)
+            textq = fontb.render("Q", True, (200, 200, 200))
+            bullet_palette_surf.blit(textq, (17.5-textq.get_width()//2, 20-textq.get_height()//2))
+            textw = fontb.render("W", True, (200, 200, 200))
+            bullet_palette_surf.blit(textw, (50-textw.get_width()//2, 20-textw.get_height()//2))
+            texte = fontb.render("E", True, (200, 200, 200))
+            bullet_palette_surf.blit(texte, (82.5-texte.get_width()//2, 20-texte.get_height()//2))
+            self.screen.blit(bullet_palette_surf, bullet_palette_rect.topleft)
+
+
     def create_fleet(self):
         global dt
         ry = self.settings.screen_height
@@ -153,14 +190,17 @@ class GamePro:
                 self.aliens[c].add(octo)
 
     def board(self):
-        font = pygame.font.Font("global/Galmuri11-Condensed.ttf", 50)
-        text = font.render(f"Points: {self.point}", True, (0, 0, 0))
+        fontC = pygame.font.Font("global/Galmuri11-Condensed.ttf", 50)
+        text = fontC.render(f"Points: {self.point}", True, (0, 0, 0))
         self.screen.blit(text, (20, 20))
-        text = font.render(f"Life: {self.life}", True, (0, 0, 0))
+        text = fontC.render(f"Life: {self.life}", True, (0, 0, 0))
         self.screen.blit(text, (20, 100))
         pallete = {0: 'Red', 1: 'Green', 2: 'Blue'}
-        text = font.render(f"현재 총알: {pallete[self.bullet_color]}", True, (0, 0, 0))
+        text = fontC.render(f"현재 총알: {pallete[self.bullet_color]}", True, (0, 0, 0))
         self.screen.blit(text, (20, 180))
+
+
+
 
 
 class Settings:
@@ -174,6 +214,9 @@ class Settings:
         self.bullet_width = 3
         self.bullet_speed = 3
         self.octopus_speed = 1
+
+
+
 
 
 class Spaceship:
@@ -192,8 +235,15 @@ class Spaceship:
     def update(self):
         global d
         self.x += d * self.settings.spaceship_speed
+        if self.x < 0:
+            self.x = 0
+        elif self.x > self.settings.screen_width - (self.rect.right - self.rect.left):
+            self.x = self.settings.screen_width - (self.rect.right - self.rect.left)
         self.rect.x = int(self.x)  # float으로 저장된 x좌표를 int로 변환한다.
         self.draw_spaceship()
+
+
+
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -213,6 +263,9 @@ class Bullet(pygame.sprite.Sprite):
 
     def draw_bullet(self):
         pygame.draw.rect(self.screen, self.color, self.rect)
+
+
+
 
 
 class Octopus(pygame.sprite.Sprite):
@@ -241,16 +294,11 @@ class Octopus(pygame.sprite.Sprite):
 
 
 d_pressed = [False, False]
+left_shift_pressed =  False
 d = 0  # 정지 0, 좌측 -1, 우측 1
 octo_d = 1  # d와 같은 규칙.
 octo_down = False
 octo_down_time = 0
-
-
-
-
-
-
 dt = 10000
 
 game = GamePro()
