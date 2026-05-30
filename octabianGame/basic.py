@@ -1,19 +1,20 @@
 import pygame, random, time
 
+
 class GamePro:
-    def __init__(self):
+    def __init__(self, llife, lpoint):
         self.clock = pygame.time.Clock()
         self.settings = Settings()
         self.screen = pygame.display.set_mode((self.settings.screen_width, self.settings.screen_height))
         self.ship = Spaceship(self)
         self.aliens = pygame.sprite.Group()
         self.bullets = pygame.sprite.Group()
-        self.life = 3
-        self.point = 0
+        self.life = llife
+        self.point = lpoint
         pygame.display.set_caption("문어외계인 침공(김태환)")
 
     def run_game(self):
-        global d, dt, left_shift_pressed, play
+        global d, dt, left_shift_pressed, play, damaged, llife, lpoint
         pygame.init()
         running = True
         out = False
@@ -37,11 +38,16 @@ class GamePro:
             self.update_screen()
             if self.life <= 0:
                 running = False
-
+            if damaged:
+                llife = self.life
+                lpoint = self.point
+                running = False
         if out:
             pygame.quit()
             play = False
-        else:
+        elif not damaged:
+            llife = 3
+            lpoint = 0
             self.game_over()
 
     def game_over(self):
@@ -99,7 +105,7 @@ class GamePro:
         return r
 
     def update_screen(self):
-        global left_shift_pressed
+        global left_shift_pressed, damaged
         self.screen.fill(self.settings.bg_color)
         self.create_fleet()
         self.aliens.update()
@@ -115,6 +121,7 @@ class GamePro:
         k = bool(pygame.sprite.spritecollide(self.ship, self.aliens, True))
         if k:
             self.life -= 1
+            damaged = True
 
         self.aliens.draw(self.screen)
 
@@ -251,8 +258,9 @@ class Octopus(pygame.sprite.Sprite):
         else:
             return False
 
-
 play = True
+llife = 3
+lpoint = 0
 while play:
     d_pressed = [False, False]
     left_shift_pressed =  False
@@ -260,6 +268,7 @@ while play:
     octo_d = 1  # d와 같은 규칙.
     octo_down_time = 0
     dt = 10000
+    damaged = False
 
-    game = GamePro()
+    game = GamePro(llife, lpoint)
     game.run_game()

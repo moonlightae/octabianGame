@@ -1,29 +1,44 @@
 import pygame, random, time
-# 총알색, 속도, 정상화
+
+class Settings:
+    def __init__(self):
+        self.screen_width = 1200
+        self.screen_height = 600
+        self.bg_color = (230, 230, 230)
+        self.spaceship_speed = 5
+        self.bullet_color = [(255, 60, 60), (60, 255, 60), (60, 60, 255)]
+        self.bullet_height = 15
+        self.bullet_width = 3
+        self.bullet_speed = 3
+        self.octopus_speed = 1
+        self.game_frame = 120
+        self.octopus_group_quantity = 10
+        self.octopus_margin = 100
+        self.octopus_size = 64
 
 class GamePro:
     def __init__(self):
-        self.clock = pygame.time.Clock()
-        self.settings = Settings()
-        self.screen = pygame.display.set_mode((self.settings.screen_width, self.settings.screen_height))
-        self.ship = Spaceship(self)
-        self.aliens = [pygame.sprite.Group(), pygame.sprite.Group(), pygame.sprite.Group()]
-        self.bullets = [pygame.sprite.Group(), pygame.sprite.Group(), pygame.sprite.Group()]
-        self.life = 3
-        self.point = 0
-        self.bullet_color = 0
+        self.clock = pygame.time.Clock()  # time의 sleep 함수 기능을 프레임마다 실행해서 게임 속도를 조절하도록 한다.
+        self.settings = Settings()  # Settings에 저장된 값을 불러온다.
+        self.screen = pygame.display.set_mode((self.settings.screen_width, self.settings.screen_height))  # 전체 게임에 사용될 Screen이다.
+        self.ship = Spaceship(self)  # 게임의 player인 spaceship을 쉽게 접근할 수 있도록 GamePro에 저장해둔다.
+        self.aliens = [pygame.sprite.Group(), pygame.sprite.Group(), pygame.sprite.Group()]  # 색에 따라 다른 그룹에 저장한 후, 별개로 관리한다.
+        self.bullets = [pygame.sprite.Group(), pygame.sprite.Group(), pygame.sprite.Group()]  # 외계인과 마찬가지.
+        self.life = 3  # player의 목숨을 GamePro 변수로 저장한다.
+        self.point = 0  # player의 점수도 마찬가지.
+        self.bullet_color = 0  # LSHIFT에서 변경할 수 있는 값으로, 0, 1, 2 값을 가진다. bullet 내부 palette의 index이다.
+        pygame.display.set_caption("문어외계인 침공(김태환)")
 
     def run_game(self):
-        global d, dt, left_shift_pressed
-        pygame.init()
-        fontC = pygame.font.Font("global/Galmuri11-Condensed.ttf", 50)
-        fontB = pygame.font.Font("global/Galmuri11-Bold.ttf", 50)
-        running = True
-        out = False
+        global d, dt, left_shift_pressed, play
+        pygame.init()  # 기초 파일 생성.
+        running = True  # 게임이 돌아가고 있는지에 대한 여부를 저장한다.(out이거나 목숨이 0이 되는 등에서 False)
+        out = False  # 게임을 끄는 버튼을 눌렀을때 True가 된다.
         while running:
-            dt += self.clock.tick(120)
-            t = self.check_events()
-            # 1: 중지, 2: A키, 3: D키, 4: LSHIFT키, 5: RSHIFT키, 6: 우주선 정지 7: LSHIFT UP, 8: Q, 9: W, 10: E
+            dt += self.clock.tick(self.settings.game_frame)  # 게임 시작 이후로 지난 시간을 기록한다.
+            t = self.check_events()  # 그 frame에 눌러지거나 떼어진 버튼을 list에 int로 담아 return한다. 아래가 해당하는 키이다.
+            # 1: 중지, 2: A키, 3: D키, 4: LSHIFT키, 5: RSHIFT키, 6: 우주선 정지(A, D 떨어짐.) 7: LSHIFT UP, 8: Q, 9: W, 10: E
+            # 이동
             if 1 in t:
                 out = True
                 running = False
@@ -34,20 +49,11 @@ class GamePro:
             elif 6 in t:
                 d = 0
 
+            # LSHIFT로 색 전환
             if 4 in t:
                 left_shift_pressed = True
-                # self.bullet_color += 1
-                # self.bullet_color %= 3
             if 7 in t:
                 left_shift_pressed = False
-
-            if 5 in t:
-                b = Bullet(self, self.bullet_color)
-                self.bullets[self.bullet_color].add(b)
-            self.update_screen()
-            if self.life <= 0:
-                running = False
-
             if left_shift_pressed:
                 if 8 in t:
                     self.bullet_color = 0
@@ -56,23 +62,44 @@ class GamePro:
                 elif 10 in t:
                     self.bullet_color = 2
 
-        if out:
+            # RSHIFT로 bullet 발사
+            if 5 in t:
+                b = Bullet(self, self.bullet_color)
+                self.bullets[self.bullet_color].add(b)
+
+            # screen을 업데이트하고, life가 0보다 작거나 같으면 게임이 정지되도록 했다.
+            self.update_screen()
+            if self.life <= 0:
+                running = False
+
+        if out:  # 종료버튼을 눌러서 running = False가 된 것인지
+            play = False
             pygame.quit()
-        else:
-            dark = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)  # 화면을 어둡게 함.
-            dark.fill((0, 0, 0, 200))
-            self.screen.blit(dark, (0, 0))
+        else:  # life가 0이하가 되어서 running = false가 된 것인지 확인한다.
+            self.game_over()
 
-            text1 = fontB.render("Game Over", True, (255, 255, 255))
-            text2 = fontC.render(f"최종 점수: {self.point}", True, (255, 255, 255))
-            self.screen.blit(text1, ((self.settings.screen_width-text1.get_width())//2, self.settings.screen_height//2 - 50))
-            self.screen.blit(text2, ((self.settings.screen_width-text2.get_width())//2, self.settings.screen_height//2 + 50))
+    def game_over(self):  # 게임 오버 화면을 함수로 지정했다.
+        global play
+        fontC = pygame.font.Font("global/Galmuri11-Condensed.ttf", 50)
+        fontB = pygame.font.Font("global/Galmuri11-Bold.ttf", 50)
+        dark = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)  # 화면을 어둡게 함.
+        dark.fill((0, 0, 0, 200))
+        self.screen.blit(dark, (0, 0))
 
-            while True:
-                self.clock.tick(120)
-                t = self.check_events()
-                if 1 in t:
-                    pygame.quit()
+        text1 = fontB.render("Game Over", True, (255, 255, 255))
+        text2 = fontC.render(f"최종 점수: {self.point}", True, (255, 255, 255))
+        text3 = fontC.render("SPACE 키로 재시작", True, (255, 255, 255))
+        self.screen.blit(text1, ((self.settings.screen_width-text1.get_width())//2, self.settings.screen_height//2 - 50))
+        self.screen.blit(text2, ((self.settings.screen_width-text2.get_width())//2, self.settings.screen_height//2 + 50))
+        self.screen.blit(text3, ((self.settings.screen_width-text3.get_width())//2, self.settings.screen_height//2 + 100))
+        while True:
+            self.clock.tick(self.settings.game_frame)
+            t = self.check_events()
+            if 5 in t:
+                break
+            if 1 in t:
+                play = False
+                break
 
     def check_events(self):
         global d_pressed
@@ -88,12 +115,10 @@ class GamePro:
                 elif event.key == pygame.K_d:
                     d_pressed[1] = True
                     r.append(3)
-
                 if event.key == pygame.K_LSHIFT:  # bullet 발사 및 그 외 기능을 담당할 입력은 if만을 이용한다.
                     r.append(4)
                 if event.key == pygame.K_RSHIFT:
                     r.append(5)
-
                 if event.key == pygame.K_q:
                     r.append(8)
                 if event.key == pygame.K_w:
@@ -116,30 +141,25 @@ class GamePro:
         return r
 
     def update_screen(self):
-        global octo_down, left_shift_pressed
+        global left_shift_pressed
         self.screen.fill(self.settings.bg_color)
-
         self.create_fleet()
         for i in range(3):
             self.aliens[i].update()
             self.bullets[i].update()
         self.ship.update()
         self.board()
+        self.change_direct()
 
-        if octo_down:
-            for i in range(3):
-                for j in self.aliens[i]:
-                    j.rect.midtop = (j.rect.midtop[0], j.rect.midtop[1] + 20)
-
-        k = False
+        k = 0  # 프레임마다 총알과 문어가 충돌한 개수를 세서 점수에 곱해 점수를 더한다. k는 임시 변수이다.
         for i in range(3):
             for j in range(3):
-                if i == j:
-                    k = k or bool(pygame.sprite.groupcollide(self.aliens[i], self.bullets[j], True, True))
-                else:
+                if i == j:  # 같은 색이면 k에 +1을 한다.
+                    k += 1 if bool(pygame.sprite.groupcollide(self.aliens[i], self.bullets[j], True, True)) else 0
+                else:  # 다른 색일 경우에는 총알만 없앤다.
                     pygame.sprite.groupcollide(self.aliens[i], self.bullets[j], False, True)
         if k:
-            self.point += 10
+            self.point += 10 * k
 
         k = False
         for i in range(3):
@@ -149,45 +169,73 @@ class GamePro:
 
         for i in range(3):
             self.aliens[i].draw(self.screen)
-        octo_down = False
 
         if left_shift_pressed:
-            fontb = pygame.font.Font("global/Galmuri11-Bold.ttf", 20)
-            bullet_palette_rect = pygame.Rect(int(self.ship.x) + self.ship.rect.width // 2 - 50, self.settings.screen_height - 120, 100, 40)
-            bullet_palette_surf = pygame.Surface(bullet_palette_rect.size, pygame.SRCALPHA)
-            pygame.draw.rect(bullet_palette_surf, (0, 0, 0, 100), bullet_palette_surf.get_rect())
-            pygame.draw.circle(bullet_palette_surf, (200, 0, 0), (17.5, 20), 15)
-            pygame.draw.circle(bullet_palette_surf, (0, 200, 0), (50, 20), 15)
-            pygame.draw.circle(bullet_palette_surf, (0, 0, 200), (82.5, 20), 15)
-            textq = fontb.render("Q", True, (200, 200, 200))
-            bullet_palette_surf.blit(textq, (17.5-textq.get_width()//2, 20-textq.get_height()//2))
-            textw = fontb.render("W", True, (200, 200, 200))
-            bullet_palette_surf.blit(textw, (50-textw.get_width()//2, 20-textw.get_height()//2))
-            texte = fontb.render("E", True, (200, 200, 200))
-            bullet_palette_surf.blit(texte, (82.5-texte.get_width()//2, 20-texte.get_height()//2))
-            self.screen.blit(bullet_palette_surf, bullet_palette_rect.topleft)
+            self.bullet_change_ui()
+
+    def bullet_change_ui(self):
+        fontb = pygame.font.Font("global/Galmuri11-Bold.ttf", 20)
+        bullet_palette_rect = pygame.Rect(int(self.ship.x) + self.ship.rect.width // 2 - 50, self.settings.screen_height - 120, 100, 40)
+        bullet_palette_surf = pygame.Surface(bullet_palette_rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(bullet_palette_surf, (0, 0, 0, 100), bullet_palette_surf.get_rect())
+        pygame.draw.circle(bullet_palette_surf, (200, 0, 0), (17.5, 20), 15)
+        pygame.draw.circle(bullet_palette_surf, (0, 200, 0), (50, 20), 15)
+        pygame.draw.circle(bullet_palette_surf, (0, 0, 200), (82.5, 20), 15)
+        textq = fontb.render("Q", True, (200, 200, 200))
+        bullet_palette_surf.blit(textq, (17.5-textq.get_width()//2, 20-textq.get_height()//2))
+        textw = fontb.render("W", True, (200, 200, 200))
+        bullet_palette_surf.blit(textw, (50-textw.get_width()//2, 20-textw.get_height()//2))
+        texte = fontb.render("E", True, (200, 200, 200))
+        bullet_palette_surf.blit(texte, (82.5-texte.get_width()//2, 20-texte.get_height()//2))
+        self.screen.blit(bullet_palette_surf, bullet_palette_rect.topleft)
 
 
-    def create_fleet(self):
-        global dt
-        ry = self.settings.screen_height
-        rx = self.settings.screen_width
+    def change_direct(self):
+        global octo_d, octo_down_time
+        octo_down = False
         for i in range(3):
             for j in self.aliens[i]:
-                if j.rect.y > self.settings.screen_height:
-                    j.kill()
-                ry = min(ry, j.rect.y)
-                rx = min(rx, j.rect.x)
+                octo_down = octo_down or j.check_edges()
+        if octo_down:
+            octo_d *= -1
+            for i in range(3):
+                for j in self.aliens[i]:
+                    j.rect.midtop = (j.rect.midtop[0], j.rect.midtop[1] + 20)
 
-        if (rx < 5 and ry > 74) or (dt > 10000 and len(self.aliens[0]) + len(self.aliens[1]) + len(self.aliens[2]) == 0):
+    def create_fleet(self):  # 문어 생성 조건이 만족되면 문어를 생성한다.
+        global dt
+        rx, rx2, ry, ry2 = self.fleet_crit()
+        if (rx is not None and ry > self.settings.octopus_size + 10) or (dt > 10000 and len(self.aliens[0]) + len(self.aliens[1]) + len(self.aliens[2]) == 0):
             dt = 0
-            now_x = 0
+            if rx is None or rx < 5:
+                now_x = 0
+            else:
+                now_x = self.settings.octopus_margin + self.settings.octopus_size // 2
             for i in range(10):
                 c = random.randint(0, 2)  # c == 0이면 Red, 1이면 Green, 2이면 Blue로.
                 octo = Octopus(c, self)
-                octo.x = now_x # 양쪽에 margin을 50 남기고, 10개가 등분배되어 들어갈 수 있도록 했다.
-                now_x += (self.settings.screen_width-100)//10
+                octo.x = now_x  # octopus가 충돌한 반대쪽에 margin을 100 남기고, ogq(settings에서 변수로 할당)개가 등분배되어 들어갈 수 있도록 했다.
+                now_x += (self.settings.screen_width-self.settings.octopus_margin)//self.settings.octopus_group_quantity
                 self.aliens[c].add(octo)
+
+    def fleet_crit(self):  # 전체 문어에서 최대, 최소에 해당하는 x, y값을 구해 반환한다.
+        if len(self.aliens[0]) + len(self.aliens[1]) + len(self.aliens[2]) != 0:
+            ry = self.settings.screen_height
+            ry2 = 0
+            rx = self.settings.screen_width
+            rx2 = 0
+            for i in range(3):
+                for j in self.aliens[i]:
+                    if j.rect.y > self.settings.screen_height:
+                        j.kill()
+                    ry = min(ry, j.rect.y)
+                    ry2 = max(ry2, j.rect.y)
+                    rx = min(rx, j.rect.x)
+                    rx2 = max(rx2, j.rect.x)
+
+            return rx, rx2+64, ry, ry2+64
+        else:
+            return None, None, None, None
 
     def board(self):
         fontC = pygame.font.Font("global/Galmuri11-Condensed.ttf", 50)
@@ -198,25 +246,6 @@ class GamePro:
         pallete = {0: 'Red', 1: 'Green', 2: 'Blue'}
         text = fontC.render(f"현재 총알: {pallete[self.bullet_color]}", True, (0, 0, 0))
         self.screen.blit(text, (20, 180))
-
-
-
-
-
-class Settings:
-    def __init__(self):
-        self.screen_width = 1200
-        self.screen_height = 600
-        self.bg_color = (230, 230, 230)
-        self.spaceship_speed = 5
-        self.bullet_color = [(255, 60, 60), (60, 255, 60), (60, 60, 255)]
-        self.bullet_height = 15
-        self.bullet_width = 3
-        self.bullet_speed = 3
-        self.octopus_speed = 1
-
-
-
 
 
 class Spaceship:
@@ -242,10 +271,6 @@ class Spaceship:
         self.rect.x = int(self.x)  # float으로 저장된 x좌표를 int로 변환한다.
         self.draw_spaceship()
 
-
-
-
-
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, game, color):
         super().__init__()
@@ -264,10 +289,6 @@ class Bullet(pygame.sprite.Sprite):
     def draw_bullet(self):
         pygame.draw.rect(self.screen, self.color, self.rect)
 
-
-
-
-
 class Octopus(pygame.sprite.Sprite):
     def __init__(self, color, game):
         super().__init__()
@@ -280,26 +301,30 @@ class Octopus(pygame.sprite.Sprite):
         self.x = self.rect.x
 
     def update(self):
-        global octo_d, octo_down, octo_down_time
-        if (self.rect.midright[0] > self.settings.screen_width or self.rect.midleft[0] < 0) and (not octo_down) and (time.time() - octo_down_time > 1):
-            octo_d *= -1
-            octo_down = True
-            octo_down_time = time.time()
-
         self.x += octo_d * self.settings.octopus_speed
         self.rect.x = int(self.x)
 
     def draw_octopus(self):
         self.screen.blit(self.image, self.rect)
 
+    def check_edges(self):
+        global octo_down_time
+        if (self.rect.x + 64 > self.settings.screen_width or self.rect.x < 0) and (time.time() - octo_down_time > 1):
+            octo_down_time = time.time()
+            return True
+        else:
+            return False
 
-d_pressed = [False, False]
-left_shift_pressed =  False
-d = 0  # 정지 0, 좌측 -1, 우측 1
-octo_d = 1  # d와 같은 규칙.
-octo_down = False
-octo_down_time = 0
-dt = 10000
 
-game = GamePro()
-game.run_game()
+
+play = True
+while play:
+    d_pressed = [False, False]
+    left_shift_pressed =  False
+    d = 0  # 정지 0, 좌측 -1, 우측 1
+    octo_d = 1  # d와 같은 규칙.
+    octo_down_time = 0
+    dt = 10000
+
+    game = GamePro()
+    game.run_game()
