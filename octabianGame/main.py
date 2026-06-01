@@ -196,7 +196,6 @@ class GamePro:
                     ry2 = max(ry2, j.rect.y)
                     rx = min(rx, j.rect.x)
                     rx2 = max(rx2, j.rect.x)
-            print(rx, rx2, ry, ry2)
             return rx, rx2+self.settings.octopus_size, ry, ry2+self.settings.octopus_size  # 최댓값에는 문어 크기를 더해서 오른쪽 끝, 아래끝을 기준으로 바꾸었다.
         else:
             return None, None, None, None  # 문어가 존재하지 않을때에는 None이 return되도록 했다.
