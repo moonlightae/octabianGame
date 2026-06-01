@@ -139,14 +139,19 @@ class GamePro:
         if (rx is not None and (rx < 5 or rx2 > self.settings.screen_width - 5) and ry > self.settings.octopus_size + 10) or (dt > 10000 and len(self.aliens) == 0):
             # 문어가 존재할 때, 가장 작은 y가 octopus_size + 10보다 크거나, 문어가 존재하지 않을 때, 이전 문어 생성 이후로 10초가 지났다면 생성한다.
             dt = 0
-            if rx is None or rx < 5:  # 문어가 존재하지 않거나 가장 작은 x가 5보다 작으면 왼쪽에 충돌한 것으로 간주한다.
+            if rx is None:
                 now_x = 0
+            elif rx < 5:  # 문어가 존재하지 않거나 가장 작은 x가 5보다 작으면 왼쪽에 충돌한 것으로 간주한다.
+                now_x = rx
             else:
-                now_x = self.settings.octopus_margin + self.settings.octopus_size // 2
+                now_x = rx2
             for i in range(10):
                 octo = Octopus(self)
                 octo.x = now_x  # octopus가 충돌한 반대쪽에 margin을 100 남기고, ogq(settings에서 변수로 할당)개가 등분배되어 들어갈 수 있도록 했다.
-                now_x += (self.settings.screen_width-self.settings.octopus_margin)//self.settings.octopus_group_quantity
+                if rx is None or rx < 5:
+                    now_x += (self.settings.screen_width-self.settings.octopus_margin)//self.settings.octopus_group_quantity
+                else:
+                    now_x -= (self.settings.screen_width-self.settings.octopus_margin)//self.settings.octopus_group_quantity
                 self.aliens.add(octo)
 
     def fleet_crit(self):  # 전체 문어에서 최대, 최소에 해당하는 x, y값을 구해 반환한다.
